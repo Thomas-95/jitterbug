@@ -5,7 +5,14 @@ import os
 def jitterbug():
     to_parse = [
         'x = 5',
-        '"Hello, world!"'
+        'x = 3.14159',
+        'x = "My string"',
+        '"Hello, world!"',
+        '1 + 2',
+        '9 - 7',
+        '15 / 5',
+        '6 * 3',
+        # 'x = 1\ny = 2\nz= x + y'  # TODO: Add support for this kind of variable assignment.
     ]
 
     # cc_code = ['#include <iostream> \n']
@@ -18,29 +25,65 @@ def jitterbug():
     for p in to_parse:
         code_generator = CCCodeGenerator()
         code_generator.visit(ast.parse(p))
-        print ('\nCCCodeGenerator output: \n' + code_generator.cc_code + '\n')
+        print ('\nCCCodeGenerator output: \n' + code_generator.cc_code)
 
-    # cc_code = ('int main() {return 0;}')
+    cc_code = ('int main() { %s return 0;}' % code_generator.cc_code)
 
     print ('Successfully generated code!')
 
-    return None
+    return cc_code
 
 
 class CCCodeGenerator(ast.NodeVisitor):
     cc_code = ''
 
     def visit_Expr(self, node):
+        """
+        When an expression, such as a function call, appears as a statement by
+        itself (an expression statement), with its return value not used or
+        stored, it is wrapped in this container.
+        """
         self.visit(node.value)
         self.cc_code += ';'
 
     def visit_Assign(self, node):
-        self.cc_code += 'int ' # TODO: Fix this to support other varaible types.
+        if node.value.__class__ == ast.Num:
+            if type(node.value.n) == int:
+                self.cc_code += 'int '
+            else:
+                self.cc_code += 'double '
+        elif node.value.__class__ == ast.Str:
+            self.cc_code += 'string '
+        elif node.value.__class__ == ast.Name:
+            raise TypeError('Jitterbug does not currently support ')
+
         if len(node.targets) != 1:
             raise ValueError('Jitterbug expects the "targets" attribute to have length 1.')
         self.visit(node.targets[0])
         self.visit(node.value)
-        self.cc_code += ';'
+        self.cc_code += ';\n'
+
+    def visit_BinOp(self, node):
+        self.visit(node.left)
+        self.visit(node.op)
+        self.visit(node.right)
+
+    def visit_Add(self, node):
+        self.cc_code += '+'
+
+    def visit_Sub(self, node):
+        self.cc_code += '-'
+
+    def visit_Mult(self, node):
+        self.cc_code += '*'
+
+    def visit_Div(self, node):
+        self.cc_code += '/'
+
+    def visit_Mod(self, node):
+        self.cc_code += '**'
+
+    # TODO: Define BoolOps and Comparison nodes.
 
     def visit_Name(self, node):
         self.cc_code += node.id
@@ -80,6 +123,6 @@ def cc_execute(filename='output.cc'):
 
 if __name__ == '__main__':
     cc = jitterbug()
-    # cc_write(cc)
-    # cc_compile()
-    # cc_execute()
+    cc_write(cc)
+    cc_compile()
+    cc_execute()
