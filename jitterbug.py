@@ -2,48 +2,59 @@ import ast
 import os
 
 
-# TODO make the function below a smarter, recursive function.
 def jitterbug():
-    parsed_assignment = (ast.parse('x = 5'))
+    to_parse = [
+        'x = 5',
+        '"Hello, world!"'
+    ]
 
-    cc_code = ['#include <iostream> \n']
+    # cc_code = ['#include <iostream> \n']
 
     print ('Generating C++ code from Python source...')
 
     # jitterbug supports only a handful of the Python ast node classes.
     # For a more comprehensive list of nodes within the Python ast:
     # https://greentreesnakes.readthedocs.io/en/latest/nodes.html
-    for node in ast.walk(parsed_assignment):
-        print (node.__class__)
+    for p in to_parse:
+        code_generator = CCCodeGenerator()
+        code_generator.visit(ast.parse(p))
+        print ('\nCCCodeGenerator output: \n' + code_generator.cc_code + '\n')
 
-        if isinstance(node, (ast.Module, ast.Expr,)):
-            continue
-
-        elif isinstance(node, ast.Assign):
-            cc_code.append('int ')
-
-        elif isinstance(node, ast.Store):
-            continue
-
-        elif isinstance(node, ast.Num):
-            cc_code.append(str(node.n))
-
-        elif isinstance(node, ast.Name):
-            cc_code.append(node.id)
-            if isinstance(node.ctx, ast.Store):
-                cc_code.append(' = ')
-
-        else:
-            raise TypeError('Type {} is not yet supported by jitterbug.'.format(node))
-
-    cc_code.append(';\n')
-    cc_code.append('int main() {return 0;}')
-
-    cc_code = ''.join(cc_code)
+    # cc_code = ('int main() {return 0;}')
 
     print ('Successfully generated code!')
 
-    return cc_code
+    return None
+
+
+class CCCodeGenerator(ast.NodeVisitor):
+    cc_code = ''
+
+    def visit_Expr(self, node):
+        self.visit(node.value)
+        self.cc_code += ';'
+
+    def visit_Assign(self, node):
+        self.cc_code += 'int ' # TODO: Fix this to support other varaible types.
+        if len(node.targets) != 1:
+            raise ValueError('Jitterbug expects the "targets" attribute to have length 1.')
+        self.visit(node.targets[0])
+        self.visit(node.value)
+        self.cc_code += ';'
+
+    def visit_Name(self, node):
+        self.cc_code += node.id
+        if isinstance(node.ctx, ast.Store):
+            self.cc_code += ' = '
+
+    def visit_Num(self, node):
+        self.cc_code += str(node.n)
+
+    # def visit_Store(self, node):
+    #     self.cc_code += ' = '
+
+    def visit_Str(self, node):
+        self.cc_code += '"%s"' % node.s
 
 
 def cc_write(cc_code, filename='output.cc'):
@@ -69,6 +80,6 @@ def cc_execute(filename='output.cc'):
 
 if __name__ == '__main__':
     cc = jitterbug()
-    cc_write(cc)
-    cc_compile()
-    cc_execute()
+    # cc_write(cc)
+    # cc_compile()
+    # cc_execute()
