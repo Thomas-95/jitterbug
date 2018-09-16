@@ -13,6 +13,8 @@ def jitterbug():
         '15 / 5',
         '6 * 3',
         # 'x = 1\ny = 2\nz= x + y'  # TODO: Add support for this kind of variable assignment.
+        'if 1 == 1:\n    x = 2',
+        'if 5 > 3:\n    x = "Five beats three."'
     ]
 
     # cc_code = ['#include <iostream> \n']
@@ -27,7 +29,7 @@ def jitterbug():
         code_generator.visit(ast.parse(p))
         print ('\nCCCodeGenerator output: \n' + code_generator.cc_code)
 
-    cc_code = ('int main() { %s return 0;}' % code_generator.cc_code)
+    cc_code = ('#include <iostream>\n int main() { %s return 0;}' % code_generator.cc_code)
 
     print ('Successfully generated code!')
 
@@ -53,12 +55,14 @@ class CCCodeGenerator(ast.NodeVisitor):
             else:
                 self.cc_code += 'double '
         elif node.value.__class__ == ast.Str:
-            self.cc_code += 'string '
+            self.cc_code += 'std::string '
         elif node.value.__class__ == ast.Name:
-            raise TypeError('Jitterbug does not currently support ')
+            raise TypeError('Jitterbug does not currently support statements of the kind "z = x + y".')
 
         if len(node.targets) != 1:
-            raise ValueError('Jitterbug expects the "targets" attribute to have length 1.')
+            raise ValueError('Jitterbug expects the "targets" attribute to have length 1.\
+                              It does not currently support tuple unpacking.')
+
         self.visit(node.targets[0])
         self.visit(node.value)
         self.cc_code += ';\n'
@@ -98,6 +102,50 @@ class CCCodeGenerator(ast.NodeVisitor):
 
     def visit_Str(self, node):
         self.cc_code += '"%s"' % node.s
+
+    def visit_Compare(self, node):
+        self.visit(node.left)
+
+        if len(node.ops) > 1:
+            raise SyntaxError('Jitterbug only supports single operations in comparison expressions. You supplied {}.'.format(len(node.ops)))
+
+        operator = node.ops[0]
+
+        if isinstance(operator, ast.Eq):
+            self.cc_code += ' == '
+        elif isinstance(operator, ast.NotEq):
+            self.cc_code += ' != '
+        elif isinstance(operator, ast.Lt):
+            self.cc_code += ' < '
+        elif isinstance(operator, ast.LtE):
+            self.cc_code += ' <= '
+        elif isinstance(operator, ast.Gt):
+            self.cc_code += ' > '
+        elif isinstance(operator, ast.GtE):
+            self.cc_code += ' >= '
+        elif node.__class__ in [ast.Is, ast.IsNot, ast.In, ast.NotIn]:
+            raise TypeError('Jitterbug does not currently support the {} syntax.'.format(node.ops))
+        else:
+            raise TypeError('Jitterbug does not recognise the operator {}.'.format(node.ops))
+
+        print (node.comparators)
+
+        if len(node.comparators) > 1:
+            raise SyntaxError('Jitterbug only supports single comparators in comparison expressions. You supplied {}.'.format(len(node.comparators)))
+
+        self.visit(node.comparators[0])
+
+    def visit_If(self, node):
+        self.cc_code += "if ("
+        self.visit(node.test)
+        self.cc_code += ')'
+
+        self.cc_code += '{'
+
+        for n in node.body:
+            self.visit(n)
+
+        self.cc_code += '}'
 
 
 def cc_write(cc_code, filename='output.cc'):
