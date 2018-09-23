@@ -3,7 +3,8 @@ import os
 
 
 def jitterbug():
-    to_parse = 'x = 1\ny = 2\nz= x + y'
+    # to_parse = 'x = 1\ny = 2\nz= x + y'  # TODO: Add support for this kind of assignment
+    to_parse = 'def get_one():\n    return 1'
 
     print ('Generating C++ code from Python source...')
 
@@ -132,6 +133,20 @@ class CCCodeGenerator(ast.NodeVisitor):
             self.visit(n)
 
         self.cc_code += '}'
+
+    def visit_FunctionDef(self, node):
+        self.cc_code += 'int '
+        self.cc_code += node.name
+        self.cc_code += '() '
+        if len(node.args.args) != 0:
+            raise TypeError('jitterbug does not currently support passing arguments to functions.')
+        self.cc_code += '{'
+        for node in node.body[:-1]:
+            self.visit(node)
+        self.cc_code += 'return '
+        self.visit(node.body[-1])
+        self.cc_code += '}'
+        self.cc_code += ';'
 
 
 def cc_write(cc_code, filename='output.cc'):
