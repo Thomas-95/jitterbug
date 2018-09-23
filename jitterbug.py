@@ -3,19 +3,16 @@ import os
 
 
 def jitterbug():
-    to_parse = [
-        'x = 1\ny = 2\nz= x + y',  # TODO: Add support for this kind of variable assignment.
-    ]
+    to_parse = 'x = 1\ny = 2\nz= x + y'
 
     print ('Generating C++ code from Python source...')
 
     # jitterbug supports only a handful of the Python ast node classes.
     # For a more comprehensive list of nodes within the Python ast:
     # https://greentreesnakes.readthedocs.io/en/latest/nodes.html
-    for p in to_parse:
-        code_generator = CCCodeGenerator()
-        code_generator.visit(ast.parse(p))
-        print ('\nCCCodeGenerator output: \n' + code_generator.cc_code)
+    code_generator = CCCodeGenerator()
+    code_generator.visit(ast.parse(to_parse))
+    print ('\nCCCodeGenerator output: \n' + code_generator.cc_code)
 
     cc_code = ('#include <iostream>\n int main() { %s return 0;}' % code_generator.cc_code)
 
@@ -37,7 +34,6 @@ class CCCodeGenerator(ast.NodeVisitor):
         self.cc_code += ';'
 
     def visit_Assign(self, node):
-        print(node.value.__class__)
         if node.value.__class__ == ast.Num:
             if type(node.value.n) == int:
                 self.cc_code += 'int '
@@ -78,9 +74,11 @@ class CCCodeGenerator(ast.NodeVisitor):
         self.cc_code += '**'
 
     def visit_Name(self, node):
-        self.cc_code += node.id
         if isinstance(node.ctx, ast.Store):
+            self.cc_code += node.id
             self.cc_code += ' = '
+        elif isinstance(node.ctx, ast.Load):
+            self.cc_code += node.id
 
     def visit_Num(self, node):
         self.cc_code += str(node.n)
