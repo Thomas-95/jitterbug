@@ -4,20 +4,8 @@ import os
 
 def jitterbug():
     to_parse = [
-        'x = 5',
-        'x = 3.14159',
-        'x = "My string"',
-        '"Hello, world!"',
-        '1 + 2',
-        '9 - 7',
-        '15 / 5',
-        '6 * 3',
-        # 'x = 1\ny = 2\nz= x + y'  # TODO: Add support for this kind of variable assignment.
-        'if 1 == 1:\n    x = 2',
-        'if 5 > 3:\n    x = "Five beats three."'
+        'x = 1\ny = 2\nz= x + y',  # TODO: Add support for this kind of variable assignment.
     ]
-
-    # cc_code = ['#include <iostream> \n']
 
     print ('Generating C++ code from Python source...')
 
@@ -49,6 +37,7 @@ class CCCodeGenerator(ast.NodeVisitor):
         self.cc_code += ';'
 
     def visit_Assign(self, node):
+        print(node.value.__class__)
         if node.value.__class__ == ast.Num:
             if type(node.value.n) == int:
                 self.cc_code += 'int '
@@ -56,8 +45,9 @@ class CCCodeGenerator(ast.NodeVisitor):
                 self.cc_code += 'double '
         elif node.value.__class__ == ast.Str:
             self.cc_code += 'std::string '
-        elif node.value.__class__ == ast.Name:
-            raise TypeError('Jitterbug does not currently support statements of the kind "z = x + y".')
+        elif node.value.__class__ == ast.BinOp:
+            if node.value.left.__class__ == ast.Name:
+                raise TypeError('Jitterbug does not currently support statements of the kind "z = x + y".')
 
         if len(node.targets) != 1:
             raise ValueError('Jitterbug expects the "targets" attribute to have length 1.\
@@ -86,8 +76,6 @@ class CCCodeGenerator(ast.NodeVisitor):
 
     def visit_Mod(self, node):
         self.cc_code += '**'
-
-    # TODO: Define BoolOps and Comparison nodes.
 
     def visit_Name(self, node):
         self.cc_code += node.id
